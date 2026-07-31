@@ -53,46 +53,46 @@
   ],
   "counterfactual": {
     "suite": "counterfactual",
-    "trials": 15,
-    "passed": 15,
+    "trials": 14,
+    "passed": 14,
     "rate": 1.0,
     "skipped": 0,
     "outcomes": [
       {
         "question": "Why did the Cormorant lose power on dive 214?",
-        "detail": "The Cormorant experienced power loss due to a hard particle that became trapped during seal replacement work performed during the August maintenance period.",
+        "detail": "The Cormorant lost power due to a hard particle that became trapped during seal replacement work performed during the August maintenance period.",
         "passed": true,
-        "note": "without 02-engineering-memo the claim scores 0.61"
+        "note": "without 02-engineering-memo the claim scores 0.51"
       },
       {
         "question": "Why did the Cormorant lose power on dive 214?",
-        "detail": "When the vehicle descended to 1,610 metres, the increased pressure deformed the compression seal, which had scoring from the trapped particle, creating a path for seawater to reach the electrical conductor.",
+        "detail": "When the vehicle descended to 1,610 metres, the compression seal deformed under pressure into the scoring caused by this particle, creating a path for seawater to reach the electrical conductor.",
         "passed": true,
-        "note": "without 02-engineering-memo the claim scores 0.66"
-      },
-      {
-        "question": "Why did the Cormorant lose power on dive 214?",
-        "detail": "As salt deposits accumulated on the conductor, resistance increased, causing two transient power dropouts before eventually leading to a full propulsion failure.",
-        "passed": true,
-        "note": "without 01-incident-report, 02-engineering-memo the claim scores 0.61"
+        "note": "without 02-engineering-memo the claim scores 0.62"
       },
       {
         "question": "How late was the maintenance window moved, and why does that matter?",
         "detail": "The excerpts indicate that a schedule compression agreed in June removed the shore maintenance window that would otherwise have applied, but they don't specify how much later the maintenance was moved or provide exact timing details.",
         "passed": true,
-        "note": "without 03-board-findings the claim scores 0.71"
+        "note": "without 03-board-findings the claim scores 0.70"
       },
       {
         "question": "How late was the maintenance window moved, and why does that matter?",
-        "detail": "According to the findings, a hard particle became trapped during seal replacement in an August maintenance period, and this particle ultimately caused the primary bus failure.",
+        "detail": "What matters about this change is that it eliminated a planned maintenance period, which would have been an opportunity to catch and address the hard particle that became trapped in the seal during the August maintenance work.",
         "passed": true,
-        "note": "without 01-incident-report, 02-engineering-memo the claim scores 0.62"
+        "note": "without 02-engineering-memo, 03-board-findings the claim scores 0.73"
       },
       {
         "question": "Did the crew make a mistake?",
-        "detail": "They logged the transient dropouts and continued as permitted by the procedures they were given.",
+        "detail": "They logged the transient dropouts and continued with the dive as the procedures allowed, since the criteria for aborting a mission were written around failures that had already occurred rather than transient events.",
         "passed": true,
-        "note": "without 01-incident-report, 04-pilot-log the claim scores 0.57"
+        "note": "without 01-incident-report, 04-pilot-log the claim scores 0.66"
+      },
+      {
+        "question": "Did the crew make a mistake?",
+        "detail": "The investigation board found that the crew's outcome was \"substantially a matter of where the vehicle happened to be\" \u2014 essentially a matter of timing and luck rather than crew error.",
+        "passed": true,
+        "note": "without 01-incident-report, 03-board-findings, 04-pilot-log the claim scores 0.65"
       },
       {
         "question": "How deep can a crewed submersible go, and what happened to Cormorant at depth?",
@@ -126,27 +126,21 @@
       },
       {
         "question": "Who was aboard, and was anyone hurt?",
-        "detail": "No one was hurt in the incident described.",
+        "detail": "Based on the excerpts, the crew included someone named Amara, and there was at least one other person piloting or operating the vehicle who made the log entries.",
         "passed": true,
-        "note": "without 01-incident-report, 04-pilot-log, 05-maintenance-record the claim scores 0.44"
+        "note": "without 01-incident-report the claim scores 0.60"
       },
       {
         "question": "What should change so this does not happen again?",
-        "detail": "First, penetrator seal work should be restricted to shore facilities rather than performed at sea, since the failure originated from a hard particle trapped during seal replacement done in the wet bay during the August maintenance period.",
+        "detail": "First, penetrator seal work should be restricted to shore facilities rather than performed at sea, since the failure originated from a hard particle trapped during seal replacement in the wet bay\u2014a non-clean environment.",
         "passed": true,
-        "note": "without 02-engineering-memo the claim scores 0.68"
+        "note": "without 02-engineering-memo, 04-pilot-log the claim scores 0.76"
       },
       {
         "question": "What should change so this does not happen again?",
-        "detail": "Third, any transient on the primary bus exceeding one second should trigger a mandatory abort.",
+        "detail": "Third, the reserve power system should be enhanced so that a vehicle operating on reserve power has sufficient capability for station-keeping and is not forced to surface blind in whatever current conditions exist.",
         "passed": true,
-        "note": "without 02-engineering-memo the claim scores 0.53"
-      },
-      {
-        "question": "What should change so this does not happen again?",
-        "detail": "Finally, the reserve bus should carry sufficient power for station-keeping so that a vehicle operating on reserve power is not forced to surface blind without thruster control, at the mercy of whatever current exists.",
-        "passed": true,
-        "note": "without 02-engineering-memo the claim scores 0.60"
+        "note": "without 02-engineering-memo the claim scores 0.64"
       }
     ],
     "skipped_detail": []

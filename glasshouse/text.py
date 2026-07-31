@@ -125,9 +125,6 @@ def word_count(text: str) -> int:
 _NON_CLAIM = re.compile(
     r"""^(?:
         here (?: 's | \s+ (?: is | are ) ) \b .*
-      | based \s+ on \s+ .{0,40}
-            (?: context | document | source | passage | excerpt ) s? \b .*
-      | according \s+ to \s+ the \s+ (?: provided | given | supplied ) \b .*
       | the \s+ (?: context | documents? | sources? | passages? | excerpts? ) \b
             .{0,60} (?: does \s+ not | do \s+ not | don't | doesn't | never ) \b .*
       | i \s+ (?: hope | can | could | cannot | can't | don't | do \s+ not
@@ -136,6 +133,23 @@ _NON_CLAIM = re.compile(
       | \W*                                  # punctuation or a rule, no words
     )$""",
     re.IGNORECASE | re.VERBOSE | re.DOTALL,
+)
+
+# Models occasionally ignore the prompt's request not to mention their input.
+# A source-framing prefix is not itself a claim, but the sentence after its
+# comma often is. Strip only the prefix before classification; rejecting the
+# whole sentence silently hides assertions such as "Based on the excerpts, the
+# crew included Amara." from ablation.
+_SOURCE_FRAME = re.compile(
+    r"""^(?:
+        based \s+ on \s+ (?: the \s+ )?
+            (?: provided \s+ | given \s+ | supplied \s+ )?
+            (?: context | documents? | sources? | passages? | excerpts? )
+      | according \s+ to \s+ (?: the \s+ )?
+            (?: provided \s+ | given \s+ | supplied \s+ )?
+            (?: context | documents? | sources? | passages? | excerpts? )
+    ) \s* [,;:\-—] \s*""",
+    re.IGNORECASE | re.VERBOSE,
 )
 
 
@@ -151,6 +165,11 @@ def carries_a_claim(sentence: str) -> bool:
     stripped = sentence.strip()
     if not stripped:
         return False
+    frame = _SOURCE_FRAME.match(stripped)
+    if frame:
+        stripped = stripped[frame.end() :].strip()
+        if not stripped:
+            return False
     if _NON_CLAIM.match(stripped):
         return False
     # A fragment with no verb-like content and almost no words is a heading.

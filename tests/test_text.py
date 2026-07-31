@@ -79,3 +79,22 @@ def test_ambiguous_sentences_are_kept_rather_than_dropped():
 def test_a_summary_still_carries_its_claim():
     """"In summary, X" asserts X, and dropping it would hide a real claim."""
     assert carries_a_claim("In summary, the project was late.")
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        (
+            "Based on the excerpts, the crew included someone named Amara "
+            "and a narrator, but the full roster isn't specified."
+        ),
+        "According to the provided context, the project was six weeks late.",
+    ],
+)
+def test_source_framing_does_not_hide_the_claim_that_follows(sentence):
+    """Only the framing is boilerplate; the assertion after it is checkable."""
+    assert carries_a_claim(sentence)
+
+
+def test_source_framing_with_only_more_scaffolding_is_not_a_claim():
+    assert not carries_a_claim("Based on the provided context, here are the details.")

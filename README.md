@@ -82,9 +82,9 @@ These numbers come from the committed recording and can be reproduced locally:
 | Evaluation | Result | What it checks |
 |---|---:|---|
 | Hand-keyed attribution | **6/6** | A unique fact is credited to the one document containing it |
-| Document-deletion counterfactual | **15/15** | A grounded claim changes after every credited document is independently removed |
+| Document-deletion counterfactual | **14/14** | A grounded claim changes after every credited document is independently removed |
 | Unsupported-sentence injection | **6/6 detected** | A plausible sentence absent from the corpus is not marked grounded |
-| Injection false positives | **0/15** | Existing grounded claims remain grounded |
+| Injection false positives | **0/14** | Existing grounded claims remain grounded |
 
 ```bash
 glasshouse eval attribution --demo
