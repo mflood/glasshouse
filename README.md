@@ -1,5 +1,7 @@
 # glasshouse
 
+[![tests](https://github.com/mflood/glasshouse/actions/workflows/tests.yml/badge.svg)](https://github.com/mflood/glasshouse/actions/workflows/tests.yml)
+
 **Remove the evidence. See what survives.**
 
 Glasshouse measures which sentences in a RAG answer actually depended on the
