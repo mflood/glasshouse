@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glasshouse"
+version = "0.1.0"
+description = "Measure which sentences of a RAG answer actually came from your documents, by removing the documents and watching what survives."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Matthew Flood" }]
+keywords = ["rag", "llm", "hallucination", "attribution", "evaluation"]
+
+dependencies = [
+    "numpy>=1.24",
+    "httpx>=0.27",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[project.scripts]
+glasshouse = "glasshouse.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["glasshouse*"]
+
+[tool.setuptools.package-data]
+glasshouse = ["web/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["error::DeprecationWarning:glasshouse.*"]

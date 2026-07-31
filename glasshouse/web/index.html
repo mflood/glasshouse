@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>glasshouse — which sentences actually came from your documents</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+<link rel="stylesheet" href="/static/app.css?v=1">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wordmark">
+    <span class="glyph" aria-hidden="true"></span>
+    <h1>glasshouse</h1>
+  </div>
+  <p class="tagline">Remove the evidence. See what survives.</p>
+  <div class="corpus-chip" id="corpus-chip" hidden></div>
+</header>
+
+<main>
+  <form class="asker" id="asker" autocomplete="off">
+    <input
+      id="question"
+      type="text"
+      name="q"
+      placeholder="Ask something about the corpus…"
+      aria-label="Question"
+      maxlength="400"
+      required>
+    <button type="submit" id="submit">
+      <span class="label">Analyse</span>
+      <span class="spinner" aria-hidden="true"></span>
+    </button>
+  </form>
+
+  <div class="suggestions" id="suggestions" hidden></div>
+
+  <p class="notice" id="notice" hidden></p>
+
+  <section class="stage" id="stage" hidden>
+
+    <div class="panel answer-panel">
+      <div class="panel-head">
+        <h2>Answer</h2>
+        <div class="legend">
+          <span class="key grounded">grounded</span>
+          <span class="key model_memory">model memory</span>
+          <span class="key unsupported">unsupported</span>
+        </div>
+      </div>
+      <div class="answer" id="answer" aria-live="polite"></div>
+      <div class="verdict-detail" id="verdict-detail" hidden></div>
+    </div>
+
+    <div class="panel sources-panel">
+      <div class="panel-head">
+        <h2>Retrieved</h2>
+        <span class="hint" id="retrieval-hint"></span>
+      </div>
+      <ol class="sources" id="sources"></ol>
+    </div>
+
+    <div class="panel matrix-panel">
+      <div class="panel-head">
+        <h2>Ablation</h2>
+        <span class="hint">each cell is how much a sentence changed when that chunk was withheld</span>
+      </div>
+      <div class="matrix-scroll">
+        <div class="matrix" id="matrix"></div>
+      </div>
+    </div>
+
+    <div class="panel space-panel">
+      <div class="panel-head">
+        <h2>Embedding space</h2>
+        <span class="hint" id="variance-hint"></span>
+      </div>
+      <canvas id="space" width="560" height="360"></canvas>
+    </div>
+
+  </section>
+
+  <footer class="meters" id="meters" hidden>
+    <span class="meter"><b id="m-grounded">–</b> grounded</span>
+    <span class="meter"><b id="m-runs">0</b> runs</span>
+    <span class="meter"><b id="m-tokens">0</b> tokens</span>
+    <span class="meter"><b id="m-cost">$0.0000</b></span>
+    <span class="meter"><b id="m-time">0.0s</b></span>
+  </footer>
+
+  <details class="about">
+    <summary>What a verdict does and does not mean</summary>
+    <div class="about-body">
+      <p><b>Grounded</b> means withholding that chunk measurably changed the
+      sentence — the model used it. It does <em>not</em> mean the chunk is true,
+      or that the sentence reads it correctly.</p>
+      <p><b>Model memory</b> means the model produces the same claim with no
+      documents at all. It may well be true. It did not come from your corpus,
+      so your corpus is not evidence for it.</p>
+      <p><b>Unsupported</b> means neither the evidence nor the model's own
+      knowledge accounts for it. Usually connective wording; occasionally a
+      claim that could not be traced.</p>
+      <p>Every effect is measured against a <b>noise floor</b> taken from a
+      control run that saw exactly the same evidence in a different order, so
+      ordinary rephrasing is not mistaken for grounding.</p>
+    </div>
+  </details>
+</main>
+
+<script src="/static/app.js?v=1"></script>
+</body>
+</html>

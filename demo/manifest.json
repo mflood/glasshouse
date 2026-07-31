@@ -1,0 +1,154 @@
+{
+  "title": "DSV Cormorant, dive 214",
+  "blurb": "Five documents about a fictional deep-submergence incident: the preliminary report, the engineering teardown, the review board's findings, the pilot's log, and the maintenance record. The vessel is invented, so anything specific about it can only have come from these pages \u2014 but submersibles are real, so the model has plenty to say from memory. Watch which is which.",
+  "questions": [
+    "Why did the Cormorant lose power on dive 214?",
+    "How late was the maintenance window moved, and why does that matter?",
+    "Did the crew make a mistake?",
+    "How deep can a crewed submersible go, and what happened to Cormorant at depth?",
+    "Who was aboard, and was anyone hurt?",
+    "What should change so this does not happen again?"
+  ],
+  "chunking": {
+    "target_words": 90
+  },
+  "retrieval": {
+    "top_k": 6
+  },
+  "ablation": {
+    "max_runs": 28
+  },
+  "recorded_model": "claude-haiku-4-5-20251001",
+  "probes": [
+    {
+      "question": "What did the teardown find on the titanium seat?",
+      "document": "02-engineering-memo",
+      "phrase": "scored along roughly a third of its circumference"
+    },
+    {
+      "question": "How many previous seal replacements were done at sea, and when?",
+      "document": "05-maintenance-record",
+      "phrase": "in October, the following March, that June, and the following February"
+    },
+    {
+      "question": "What did the pilot decide when the second flicker happened?",
+      "document": "04-pilot-log",
+      "phrase": "twice is a pattern and I would call it if there was a third"
+    },
+    {
+      "question": "How much shallower would the vehicle have been on the earlier warning?",
+      "document": "03-board-findings",
+      "phrase": "234 metres shallower"
+    },
+    {
+      "question": "How far from the support ship did the vehicle surface?",
+      "document": "01-incident-report",
+      "phrase": "4.1 nautical miles east"
+    },
+    {
+      "question": "What is the clean bench at the shore facility rated for?",
+      "document": "05-maintenance-record",
+      "phrase": "clean bench rated for this work"
+    }
+  ],
+  "counterfactual": {
+    "suite": "counterfactual",
+    "trials": 15,
+    "passed": 15,
+    "rate": 1.0,
+    "skipped": 0,
+    "outcomes": [
+      {
+        "question": "Why did the Cormorant lose power on dive 214?",
+        "detail": "The Cormorant experienced power loss due to a hard particle that became trapped during seal replacement work performed during the August maintenance period.",
+        "passed": true,
+        "note": "without 02-engineering-memo the claim scores 0.61"
+      },
+      {
+        "question": "Why did the Cormorant lose power on dive 214?",
+        "detail": "When the vehicle descended to 1,610 metres, the increased pressure deformed the compression seal, which had scoring from the trapped particle, creating a path for seawater to reach the electrical conductor.",
+        "passed": true,
+        "note": "without 02-engineering-memo the claim scores 0.66"
+      },
+      {
+        "question": "Why did the Cormorant lose power on dive 214?",
+        "detail": "As salt deposits accumulated on the conductor, resistance increased, causing two transient power dropouts before eventually leading to a full propulsion failure.",
+        "passed": true,
+        "note": "without 01-incident-report, 02-engineering-memo the claim scores 0.61"
+      },
+      {
+        "question": "How late was the maintenance window moved, and why does that matter?",
+        "detail": "The excerpts indicate that a schedule compression agreed in June removed the shore maintenance window that would otherwise have applied, but they don't specify how much later the maintenance was moved or provide exact timing details.",
+        "passed": true,
+        "note": "without 03-board-findings the claim scores 0.71"
+      },
+      {
+        "question": "How late was the maintenance window moved, and why does that matter?",
+        "detail": "According to the findings, a hard particle became trapped during seal replacement in an August maintenance period, and this particle ultimately caused the primary bus failure.",
+        "passed": true,
+        "note": "without 01-incident-report, 02-engineering-memo the claim scores 0.62"
+      },
+      {
+        "question": "Did the crew make a mistake?",
+        "detail": "They logged the transient dropouts and continued as permitted by the procedures they were given.",
+        "passed": true,
+        "note": "without 01-incident-report, 04-pilot-log the claim scores 0.57"
+      },
+      {
+        "question": "How deep can a crewed submersible go, and what happened to Cormorant at depth?",
+        "detail": "The DSV Cormorant was designed to operate at working depths around 1,850 metres, which was the target depth for its dive on November 2nd.",
+        "passed": true,
+        "note": "without 01-incident-report the claim scores 0.58"
+      },
+      {
+        "question": "How deep can a crewed submersible go, and what happened to Cormorant at depth?",
+        "detail": "At depth, the vehicle experienced a series of electrical failures in its primary power bus.",
+        "passed": true,
+        "note": "without 01-incident-report the claim scores 0.63"
+      },
+      {
+        "question": "How deep can a crewed submersible go, and what happened to Cormorant at depth?",
+        "detail": "The first dropout occurred at 1,610 metres and lasted 400 milliseconds, followed by a second dropout at 1,610 metres that lasted over two seconds and disabled the forward thrusters and primary lighting.",
+        "passed": true,
+        "note": "without 01-incident-report the claim scores 0.61"
+      },
+      {
+        "question": "How deep can a crewed submersible go, and what happened to Cormorant at depth?",
+        "detail": "Finally, at 1,844 metres, the primary bus failed completely, forcing the vehicle to switch to its reserve power system, which could support life support and communications but not propulsion.",
+        "passed": true,
+        "note": "without 01-incident-report the claim scores 0.63"
+      },
+      {
+        "question": "How deep can a crewed submersible go, and what happened to Cormorant at depth?",
+        "detail": "The crew then released descent weights and began ascending, surfacing safely after about an hour and a half.",
+        "passed": true,
+        "note": "without 01-incident-report the claim scores 0.51"
+      },
+      {
+        "question": "Who was aboard, and was anyone hurt?",
+        "detail": "No one was hurt in the incident described.",
+        "passed": true,
+        "note": "without 01-incident-report, 04-pilot-log, 05-maintenance-record the claim scores 0.44"
+      },
+      {
+        "question": "What should change so this does not happen again?",
+        "detail": "First, penetrator seal work should be restricted to shore facilities rather than performed at sea, since the failure originated from a hard particle trapped during seal replacement done in the wet bay during the August maintenance period.",
+        "passed": true,
+        "note": "without 02-engineering-memo the claim scores 0.68"
+      },
+      {
+        "question": "What should change so this does not happen again?",
+        "detail": "Third, any transient on the primary bus exceeding one second should trigger a mandatory abort.",
+        "passed": true,
+        "note": "without 02-engineering-memo the claim scores 0.53"
+      },
+      {
+        "question": "What should change so this does not happen again?",
+        "detail": "Finally, the reserve bus should carry sufficient power for station-keeping so that a vehicle operating on reserve power is not forced to surface blind without thruster control, at the mercy of whatever current exists.",
+        "passed": true,
+        "note": "without 02-engineering-memo the claim scores 0.60"
+      }
+    ],
+    "skipped_detail": []
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "about": [
+    "Ground truth for the attribution evaluation. Each question asks about a",
+    "fact that appears in exactly ONE document of the corpus, so the document",
+    "glasshouse credits can be checked against a key written by hand rather",
+    "than against another model's opinion.",
+    "",
+    "Uniqueness was verified with demo/source/check_probes.py, which greps the",
+    "corpus for each distinguishing phrase and fails if more than one document",
+    "contains it. If you edit the corpus, run that script before trusting these."
+  ],
+  "probes": [
+    {
+      "question": "What did the teardown find on the titanium seat?",
+      "document": "02-engineering-memo",
+      "phrase": "scored along roughly a third of its circumference"
+    },
+    {
+      "question": "How many previous seal replacements were done at sea, and when?",
+      "document": "05-maintenance-record",
+      "phrase": "in October, the following March, that June, and the following February"
+    },
+    {
+      "question": "What did the pilot decide when the second flicker happened?",
+      "document": "04-pilot-log",
+      "phrase": "twice is a pattern and I would call it if there was a third"
+    },
+    {
+      "question": "How much shallower would the vehicle have been on the earlier warning?",
+      "document": "03-board-findings",
+      "phrase": "234 metres shallower"
+    },
+    {
+      "question": "How far from the support ship did the vehicle surface?",
+      "document": "01-incident-report",
+      "phrase": "4.1 nautical miles east"
+    },
+    {
+      "question": "What is the clean bench at the shore facility rated for?",
+      "document": "05-maintenance-record",
+      "phrase": "clean bench rated for this work"
+    }
+  ]
+}
