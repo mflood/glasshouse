@@ -69,6 +69,7 @@ def create_app(settings: Settings) -> FastAPI:
             "model": lab.ablation.model,
             "top_k": lab.retrieval.top_k,
             "max_runs": lab.ablation.max_runs,
+            "embedders": lab.metadata,
         }
 
     @app.get("/api/document/{doc_id}")

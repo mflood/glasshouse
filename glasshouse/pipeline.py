@@ -8,8 +8,9 @@ without a branch anywhere in it.
 
 from __future__ import annotations
 
+import asyncio
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Sequence
 
@@ -17,7 +18,7 @@ import numpy as np
 
 from .ablate import AblationPolicy, Ablator
 from .corpus import ChunkingPolicy, chunk_all, load_documents
-from .embed import CachingEmbedder, Embedder, FrozenEmbedder, NgramEmbedder
+from .embed import CachingEmbedder, Embedder, FrozenEmbedder, NgramEmbedder, identity
 from .events import Emitter, emit
 from .index import HybridIndex, RetrievalPolicy
 from .llm import LLM, ReplayLLM
@@ -44,12 +45,16 @@ class Lab:
 
         await emit(emitter, "question", question=question)
 
-        retrieved = self.index.search(question, self.retrieval)
+        # Embedding may perform synchronous HTTP. Keep that work off the event
+        # loop so another request can continue streaming while it is in flight.
+        retrieved, projection = await asyncio.to_thread(
+            self._retrieve, question
+        )
         await emit(
             emitter,
             "retrieved",
             chunks=[retrieved_json(r) for r in retrieved],
-            projection=self.projection(question),
+            projection=projection,
         )
 
         if not retrieved:
@@ -57,6 +62,7 @@ class Lab:
 
         ablator = Ablator(self.llm, self.matcher, self.ablation, emitter)
         report = await ablator.analyse(question, retrieved)
+        report = replace(report, metadata=self.metadata)
 
         await emit(
             emitter,
@@ -69,6 +75,17 @@ class Lab:
             truncated=report.truncated,
         )
         return report
+
+    def _retrieve(self, question: str):
+        retrieved = self.index.search(question, self.retrieval)
+        return retrieved, self.projection(question)
+
+    @property
+    def metadata(self) -> dict[str, str]:
+        return {
+            "retrieval_embedder": identity(self.index.embedder),
+            "survival_embedder": identity(self.matcher.embedder),
+        }
 
     def projection(self, question: str | None = None) -> dict:
         """A 2-D view of the retrieved region of embedding space, for the UI.
@@ -113,19 +130,28 @@ def build(
     documents: Sequence[Document],
     llm: LLM,
     embedder: Embedder | None = None,
+    retrieval_embedder: Embedder | None = None,
+    survival_embedder: Embedder | None = None,
     chunking: ChunkingPolicy | None = None,
     retrieval: RetrievalPolicy | None = None,
     ablation: AblationPolicy | None = None,
 ) -> Lab:
     """Assemble a lab from documents."""
-    embedder = CachingEmbedder(embedder or NgramEmbedder())
+    if embedder is not None and retrieval_embedder is not None:
+        raise ValueError("pass embedder or retrieval_embedder, not both")
+    retrieval_embedder = retrieval_embedder or embedder or NgramEmbedder()
+    if not isinstance(retrieval_embedder, CachingEmbedder):
+        retrieval_embedder = CachingEmbedder(retrieval_embedder)
+    survival_embedder = survival_embedder or NgramEmbedder(dimensions=1024)
+    if not isinstance(survival_embedder, CachingEmbedder):
+        survival_embedder = CachingEmbedder(survival_embedder)
     chunks = chunk_all(list(documents), chunking)
     if not chunks:
         raise ValueError("the corpus produced no chunks -- are the documents empty?")
     return Lab(
-        index=HybridIndex(chunks, embedder),
+        index=HybridIndex(chunks, retrieval_embedder),
         llm=llm,
-        matcher=Matcher(embedder),
+        matcher=Matcher(survival_embedder),
         retrieval=retrieval or RetrievalPolicy(),
         ablation=ablation or AblationPolicy(),
         documents=tuple(documents),

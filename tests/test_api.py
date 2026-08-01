@@ -46,6 +46,10 @@ def test_corpus_describes_the_setup(client):
     assert body["title"] == "test corpus"
     assert len(body["documents"]) == 3
     assert body["chunks"] > 0
+    assert body["embedders"] == {
+        "retrieval_embedder": "ngram-local",
+        "survival_embedder": "ngram-local",
+    }
 
 
 def test_a_document_can_be_fetched_whole(client):
@@ -101,6 +105,8 @@ def test_the_report_carries_the_whole_finding(client):
     assert payload["retrieved"]
     assert payload["claims"]
     assert payload["summary"]["runs"] > 1
+    assert payload["metadata"]["retrieval_embedder"] == "ngram-local"
+    assert payload["metadata"]["survival_embedder"] == "ngram-local"
 
 
 def test_retrieval_arrives_with_a_projection_to_draw(client):

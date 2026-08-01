@@ -199,6 +199,7 @@ class Report:
     usage: Usage = ZERO_USAGE
     elapsed_s: float = 0.0
     truncated: bool = False
+    metadata: dict[str, str] = field(default_factory=dict)
 
     @property
     def grounded_count(self) -> int:

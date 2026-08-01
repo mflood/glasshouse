@@ -172,7 +172,7 @@ class Ablator:
         results = await self._run_all(question, chunks, allowed)
         runs.extend(results)
 
-        survival = {run.run_id: self._survival(claims, run) for run in results}
+        survival = await asyncio.to_thread(self._score_survival, claims, results)
         noise = self._noise_floor(claims, results, survival)
         memory = self._memory(claims, results, survival)
 
@@ -182,7 +182,9 @@ class Ablator:
             v.index for v in verdicts if v.verdict is Verdict.UNDETERMINED
         ]
         if unresolved:
-            coalitions = self._plan_coalitions(unresolved, verdicts, chunks)
+            coalitions = await asyncio.to_thread(
+                self._plan_coalitions, unresolved, verdicts, chunks
+            )
             affordable = coalitions[: budget.remaining]
             budget.take(len(affordable))
             truncated = truncated or len(affordable) < len(coalitions)
@@ -190,8 +192,9 @@ class Ablator:
             if affordable:
                 extra = await self._run_all(question, chunks, affordable)
                 runs.extend(extra)
-                for run in extra:
-                    survival[run.run_id] = self._survival(claims, run)
+                survival.update(
+                    await asyncio.to_thread(self._score_survival, claims, extra)
+                )
                 verdicts = self._coalition_pass(
                     verdicts, unresolved, extra, survival, noise, memory
                 )
@@ -328,6 +331,11 @@ class Ablator:
 
     def _survival(self, claims: Sequence[str], run: Run) -> np.ndarray:
         return self.matcher.survival(claims, run.sentences)
+
+    def _score_survival(
+        self, claims: Sequence[str], runs: Sequence[Run]
+    ) -> dict[str, np.ndarray]:
+        return {run.run_id: self._survival(claims, run) for run in runs}
 
     def _noise_floor(
         self,
