@@ -129,11 +129,13 @@ glasshouse eval counterfactual --demo
 glasshouse eval injection --demo
 ```
 
-The deletion counterfactual tests each attribution with a different operation
-from the one that produced it. The injection command now uses a committed
-fixture of independently authored positive and negative sentence labels. It
-reports the full confusion matrix, and the threshold sweep optimises recall and
-precision subject to a 10% false-positive-rate ceiling.
+The deletion counterfactual tests each attribution with a different intervention
+from the one that produced it. Its grading reuses the production sentence
+splitter and survival matcher so punctuation cannot change the definition of a
+surviving claim. The injection command now uses a committed fixture of
+independently authored positive and negative sentence labels. It reports the
+full confusion matrix, and the threshold sweep optimises recall and precision
+subject to a 10% false-positive-rate ceiling.
 
 ## The web surface
 

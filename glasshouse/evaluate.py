@@ -16,8 +16,9 @@ model's opinion.
 **Counterfactual** is the one worth trusting most, because it needs no labels
 at all. When glasshouse says a sentence is grounded in a chunk, that is a
 falsifiable prediction: delete the document containing that chunk, ask again,
-and the sentence should not come back unchanged. The prediction and the test
-share no machinery, so a bug cannot satisfy both by being self-consistent.
+and the sentence should not come back unchanged. The deletion is an independent
+intervention, while grading deliberately reuses production sentence splitting
+and survival matching so it measures reappearance the same way.
 
 The numbers these produce are in the README, including the unflattering ones.
 """
@@ -32,6 +33,8 @@ from typing import Sequence
 
 from .models import Document, Verdict
 from .pipeline import Lab, build
+from .similarity import Matcher
+from .text import sentences
 
 
 @dataclass
@@ -277,16 +280,29 @@ async def counterfactual_suite(
 ) -> Suite:
     """Test every attribution by deleting the document it points at.
 
-    This is the strongest check in the project because it shares no machinery
-    with the thing it is checking. glasshouse predicts "this sentence came from
-    that document"; the test removes the document, asks again, and looks for
-    the sentence. A detector that is confidently wrong fails here even if it is
-    wrong consistently.
+    The document deletion is independent of the ablation that produced the
+    attribution. Grading deliberately shares production's sentence splitter
+    and survival matcher: glasshouse predicts "this sentence came from that
+    document"; the test removes the document, asks again, and looks for the
+    sentence using the same definition of reappearance.
     """
     suite = Suite("counterfactual")
     by_id = {d.doc_id: d for d in documents}
     baselines = baselines or {}
     reduced_answers: dict[tuple[str, tuple[str, ...]], object] = {}
+
+    grading_matcher = lab.matcher
+    from .embed import FrozenEmbedder, NgramEmbedder
+
+    if isinstance(grading_matcher.embedder, FrozenEmbedder):
+        # The demo froze deterministic n-gram vectors for the production runs.
+        # A newly corrected sentence boundary creates a new input string, so
+        # reconstruct that same local embedder instead of requiring a new LLM
+        # recording merely to cache another deterministic vector.
+        grading_matcher = Matcher(
+            NgramEmbedder(dimensions=grading_matcher.embedder.dimensions),
+            lexical=grading_matcher.lexical,
+        )
 
     for question in questions:
         report = baselines.get(question) or await lab.ask(question)
@@ -322,8 +338,6 @@ async def counterfactual_suite(
             if after is None:
                 retrieval_embedder = lab.index.embedder
                 survival_embedder = lab.matcher.embedder
-                from .embed import FrozenEmbedder, NgramEmbedder
-
                 if isinstance(retrieval_embedder, FrozenEmbedder):
                     # The committed cassette recorded reduced-corpus retrieval
                     # with the deterministic local model. Frozen vectors only
@@ -346,7 +360,7 @@ async def counterfactual_suite(
                 after = await smaller.ask(question)
                 reduced_answers[key] = after
             survived = float(
-                lab.matcher.survival([claim.text], list(after.answer.split(". ")))[0]
+                grading_matcher.survival([claim.text], sentences(after.answer))[0]
             )
 
             suite.outcomes.append(
