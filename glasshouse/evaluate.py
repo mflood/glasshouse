@@ -3,14 +3,10 @@
 A hallucination detector that has not been measured is a claim, not a tool. Two
 evaluations run here, and they are deliberately different in kind.
 
-**Injection** is the ordinary one, and it is reported here mainly to explain
-why it is nearly worthless. Splice a plausible unsupported sentence into a real
-answer and glasshouse flags it every time -- but that is close to a tautology.
-A spliced sentence appears in no variant answer, so its similarity drop and its
-noise floor are both large and cancel to roughly zero effect. It cannot be
-graded grounded almost regardless of what the detector does. A number that a
-broken implementation would also score 100% on is not evidence, and saying so
-is more useful than printing it.
+**Injection** scores hand-labelled grounded and unsupported sentences against
+the ablation runs for a question.  The labels live in a committed fixture and
+never depend on a verdict emitted by glasshouse, so both always-grounded and
+never-grounded implementations are visible in the confusion matrix.
 
 **Attribution** is the one with ground truth. The demo corpus was written so
 that particular facts appear in exactly one document, which makes "did it name
@@ -74,71 +70,106 @@ class Suite:
         }
 
 
+@dataclass
+class ClassificationSuite:
+    """Independent binary labels and the detector predictions made for them."""
+
+    name: str = "independent-sentence-classification"
+    outcomes: list[Outcome] = field(default_factory=list)
+    skipped: list[str] = field(default_factory=list)
+    expected: list[bool] = field(default_factory=list)
+    predicted: list[bool] = field(default_factory=list)
+
+    def _count(self, expected: bool, predicted: bool) -> int:
+        return sum(
+            want is expected and got is predicted
+            for want, got in zip(self.expected, self.predicted)
+        )
+
+    @property
+    def precision(self) -> float:
+        tp, fp = self._count(True, True), self._count(False, True)
+        return tp / (tp + fp) if tp + fp else 0.0
+
+    @property
+    def recall(self) -> float:
+        tp, fn = self._count(True, True), self._count(True, False)
+        return tp / (tp + fn) if tp + fn else 0.0
+
+    @property
+    def false_positive_rate(self) -> float:
+        fp, tn = self._count(False, True), self._count(False, False)
+        return fp / (fp + tn) if fp + tn else 0.0
+
+    @property
+    def false_negative_rate(self) -> float:
+        return 1.0 - self.recall
+
+    def report(self) -> dict:
+        return {
+            "suite": self.name,
+            "trials": len(self.outcomes),
+            "skipped": len(self.skipped),
+            "true_positive": self._count(True, True),
+            "true_negative": self._count(False, False),
+            "false_positive": self._count(False, True),
+            "false_negative": self._count(True, False),
+            "precision": round(self.precision, 4),
+            "recall": round(self.recall, 4),
+            "false_positive_rate": round(self.false_positive_rate, 4),
+            "false_negative_rate": round(self.false_negative_rate, 4),
+            "outcomes": [asdict(o) for o in self.outcomes],
+            "skipped_detail": self.skipped,
+        }
+
+
 # ---------------------------------------------------------------------------
 # Injection
 # ---------------------------------------------------------------------------
 
-#: Sentences that are plausible, specific, and unsupported by any corpus here.
-#: Written by hand rather than generated, so the eval does not depend on a
-#: model's willingness to fabricate on demand, and so the same sentences are
-#: used on every run.
-INJECTIONS = [
-    "The board commissioned an independent review of the decision.",
-    "A second supplier was engaged in the following quarter.",
-    "The programme director resigned shortly afterwards.",
-    "Regulators were notified within thirty days as required.",
-    "An internal audit later put the figure closer to double the estimate.",
-]
 
-
-async def injection_suite(lab: Lab, questions: Sequence[str]) -> tuple[Suite, Suite]:
-    """Splice unsupported sentences into real answers and see what is caught.
-
-    Returns two suites: detection (was the injected sentence flagged?) and
-    false positives (did the model's own grounded sentences survive intact?).
-    A detector that flags everything scores perfectly on the first and
-    catastrophically on the second, which is why both are reported.
-    """
-    detection = Suite("injection-detection")
-    false_positive = Suite("injection-false-positive")
-
-    for number, question in enumerate(questions):
-        report = await lab.ask(question)
+async def injection_suite(
+    lab: Lab, labels: Sequence[dict], reports: dict[str, object] | None = None
+) -> ClassificationSuite:
+    """Classify sentences whose truth labels were written outside the detector."""
+    suite = ClassificationSuite()
+    reports = reports if reports is not None else {}
+    for label in labels:
+        question = label["question"]
+        expected = label["grounded"]
+        sentence = label["sentence"]
+        report = reports.get(question)
+        if report is None:
+            report = await lab.ask(question)
+            reports[question] = report
         if not report.checkable:
-            detection.skipped.append("%s -- no checkable claims" % question)
+            suite.skipped.append("%s -- no checkable claims" % question)
             continue
-
-        for claim in report.checkable:
-            if claim.verdict is Verdict.GROUNDED:
-                false_positive.outcomes.append(
-                    Outcome(
-                        question=question,
-                        detail=claim.text,
-                        passed=True,
-                        note="genuinely grounded, correctly kept",
-                    )
-                )
-
-        injected = INJECTIONS[number % len(INJECTIONS)]
-        verdict = await _verdict_for_injected(lab, question, report, injected)
+        verdict = await _verdict_for_label(lab, report, sentence)
         if verdict is None:
-            detection.skipped.append("%s -- could not place the injection" % question)
+            suite.skipped.append("%s -- could not score labelled sentence" % question)
             continue
-
-        detection.outcomes.append(
+        predicted = verdict is Verdict.GROUNDED
+        suite.expected.append(expected)
+        suite.predicted.append(predicted)
+        suite.outcomes.append(
             Outcome(
                 question=question,
-                detail=injected,
-                passed=verdict is not Verdict.GROUNDED,
-                note="reported as %s" % verdict.value,
+                detail=sentence,
+                passed=predicted is expected,
+                note="expected %s; reported %s%s"
+                % (
+                    "grounded" if expected else "unsupported",
+                    verdict.value,
+                    "; source %s" % label["document"] if label.get("document") else "",
+                ),
             )
         )
+    return suite
 
-    return detection, false_positive
 
-
-async def _verdict_for_injected(lab: Lab, question: str, report, injected: str):
-    """Score one spliced-in sentence using the runs already paid for.
+async def _verdict_for_label(lab: Lab, report, sentence: str):
+    """Score one externally labelled sentence using runs already paid for.
 
     The ablation runs for this question exist; the injected sentence just needs
     scoring against them. Re-running the whole sweep would multiply the cost of
@@ -147,7 +178,7 @@ async def _verdict_for_injected(lab: Lab, question: str, report, injected: str):
     from .ablate import Ablator
 
     ablator = Ablator(lab.llm, lab.matcher, lab.ablation)
-    claims = [injected]
+    claims = [sentence]
 
     survival = {
         run.run_id: lab.matcher.survival(claims, run.sentences) for run in report.runs
@@ -174,7 +205,7 @@ async def _verdict_for_injected(lab: Lab, question: str, report, injected: str):
         )
     supports.sort(key=lambda s: -s.effect)
 
-    decided = ablator._decide(0, injected, supports, float(noise[0]), float(memory[0]))
+    decided = ablator._decide(0, sentence, supports, float(noise[0]), float(memory[0]))
     return ablator._settle(decided, truncated=False).verdict
 
 
@@ -323,17 +354,13 @@ async def counterfactual_suite(
 
 
 async def threshold_sweep(
-    lab: Lab, documents: Sequence[Document], questions: Sequence[str]
+    lab: Lab, documents: Sequence[Document], labels: Sequence[dict]
 ) -> dict:
-    """Where do the default thresholds come from?
-
-    From this, rather than from taste. The sweep reports detection and false
-    positive rates across a grid, and the default is the point that maximises
-    detection subject to keeping false positives under a tenth.
-    """
+    """Select a support threshold against the independent sentence labels."""
     from .ablate import AblationPolicy
 
     rows = []
+    reports: dict[str, object] = {}
     for support in (0.06, 0.09, 0.12, 0.15, 0.20, 0.25):
         lab.ablation = AblationPolicy(
             support_threshold=support,
@@ -341,16 +368,28 @@ async def threshold_sweep(
             max_runs=lab.ablation.max_runs,
             model=lab.ablation.model,
         )
-        detection, false_positive = await injection_suite(lab, questions)
+        suite = await injection_suite(lab, labels, reports=reports)
         rows.append(
             {
                 "support_threshold": support,
-                "detection": round(detection.rate, 4),
-                "false_positive": round(1.0 - false_positive.rate, 4),
-                "trials": len(detection.outcomes),
+                "precision": round(suite.precision, 4),
+                "recall": round(suite.recall, 4),
+                "false_positive_rate": round(suite.false_positive_rate, 4),
+                "false_negative_rate": round(suite.false_negative_rate, 4),
+                "trials": len(suite.outcomes),
+                "skipped": len(suite.skipped),
             }
         )
-    return {"sweep": rows}
+    eligible = [row for row in rows if row["false_positive_rate"] <= 0.10]
+    selected = max(
+        eligible or rows,
+        key=lambda row: (row["recall"], row["precision"], -row["support_threshold"]),
+    )
+    return {
+        "objective": "maximise recall, then precision, subject to FPR <= 0.10",
+        "selected_support_threshold": selected["support_threshold"],
+        "sweep": rows,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -365,6 +404,7 @@ async def run_suite(args) -> int:
         demo = load_demo(delay=0.0)
         lab, documents, questions = demo.lab, list(demo.lab.documents), list(demo.questions)
         probes = list(demo.probes)
+        labels = list(getattr(demo, "labels", ()))
     else:
         from .corpus import load_documents
         from .llm import AnthropicLLM
@@ -373,6 +413,7 @@ async def run_suite(args) -> int:
         lab = build(documents, AnthropicLLM())
         questions = _questions_beside(args.corpus)
         probes = _probes_beside(args.corpus)
+        labels = _labels_beside(args.corpus)
 
     if args.suite == "attribution":
         if not probes:
@@ -386,18 +427,16 @@ async def run_suite(args) -> int:
             % (suite.rate * 100, len(suite.outcomes))
         )
     elif args.suite == "injection":
-        detection, false_positive = await injection_suite(lab, questions)
-        payload = {
-            "detection": detection.report(),
-            "false_positive": false_positive.report(),
-        }
+        if not labels:
+            raise FileNotFoundError("the injection suite needs labels.json beside the corpus")
+        suite = await injection_suite(lab, labels)
+        payload = suite.report()
         print(
-            "detection %.0f%% (%d trials)   false positives %.0f%% (%d grounded claims)"
+            "precision %.0f%%   recall %.0f%%   FPR %.0f%%   FNR %.0f%% (%d trials, %d skipped)"
             % (
-                detection.rate * 100,
-                len(detection.outcomes),
-                (1 - false_positive.rate) * 100,
-                len(false_positive.outcomes),
+                suite.precision * 100, suite.recall * 100,
+                suite.false_positive_rate * 100, suite.false_negative_rate * 100,
+                len(suite.outcomes), len(suite.skipped),
             )
         )
     elif args.suite == "counterfactual":
@@ -408,13 +447,16 @@ async def run_suite(args) -> int:
             % (suite.rate * 100, len(suite.outcomes), len(suite.skipped))
         )
     else:
-        payload = await threshold_sweep(lab, documents, questions)
-        print("%-20s %-12s %s" % ("support_threshold", "detection", "false_positive"))
+        if not labels:
+            raise FileNotFoundError("the threshold sweep needs labels.json beside the corpus")
+        payload = await threshold_sweep(lab, documents, labels)
+        print("%-20s %-10s %-10s %s" % ("support_threshold", "precision", "recall", "FPR"))
         for row in payload["sweep"]:
             print(
-                "%-20.2f %-12.2f %.2f"
-                % (row["support_threshold"], row["detection"], row["false_positive"])
+                "%-20.2f %-10.2f %-10.2f %.2f"
+                % (row["support_threshold"], row["precision"], row["recall"], row["false_positive_rate"])
             )
+        print("selected %.2f" % payload["selected_support_threshold"])
 
     if args.out:
         Path(args.out).write_text(json.dumps(payload, indent=2))
@@ -445,3 +487,12 @@ def _probes_beside(corpus: Path) -> list[dict]:
         return []
     payload = json.loads(candidate.read_text(encoding="utf-8"))
     return list(payload.get("probes", ()))
+
+
+def _labels_beside(corpus: Path) -> list[dict]:
+    """Read independent sentence-level truth labels next to a live corpus."""
+    path = Path(corpus)
+    candidate = (path if path.is_dir() else path.parent) / "labels.json"
+    if not candidate.exists():
+        return []
+    return list(json.loads(candidate.read_text(encoding="utf-8")).get("labels", ()))

@@ -153,6 +153,8 @@ class Demo:
     blurb: str
     #: Ground truth for the attribution evaluation; see demo/source/probes.json.
     probes: tuple[dict, ...] = ()
+    #: Independent sentence labels used by the injection/classification eval.
+    labels: tuple[dict, ...] = ()
 
 
 def load_demo(directory: Path | None = None, delay: float = 0.35) -> Demo:
@@ -189,4 +191,5 @@ def load_demo(directory: Path | None = None, delay: float = 0.35) -> Demo:
         title=manifest.get("title", "demo corpus"),
         blurb=manifest.get("blurb", ""),
         probes=tuple(manifest.get("probes", ())),
+        labels=tuple(manifest.get("labels", ())),
     )
