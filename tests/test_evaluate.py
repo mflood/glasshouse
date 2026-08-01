@@ -5,6 +5,9 @@ import pytest
 
 from glasshouse import AblationPolicy, ChunkingPolicy, Document, build
 from glasshouse.evaluate import (
+    ClassificationSuite,
+    Outcome,
+    _labels_beside,
     Suite,
     _probes_beside,
     attribution_suite,
@@ -72,6 +75,35 @@ def test_probe_key_loads_beside_a_corpus(tmp_path):
 
 def test_missing_probe_key_is_empty(tmp_path):
     assert _probes_beside(tmp_path) == []
+
+
+def test_independent_labels_load_beside_a_corpus(tmp_path):
+    payload = {"labels": [{"question": "q", "sentence": "s", "grounded": False}]}
+    (tmp_path / "labels.json").write_text(json.dumps(payload))
+
+    assert _labels_beside(tmp_path) == payload["labels"]
+
+
+def test_mark_everything_grounded_fails_false_positive_control():
+    suite = ClassificationSuite()
+    suite.expected = [True, False]
+    suite.predicted = [True, True]
+    suite.outcomes = [Outcome("q", "positive", True), Outcome("q", "negative", False)]
+
+    assert suite.false_positive_rate == 1.0
+    assert suite.precision == 0.5
+    assert suite.report()["false_positive"] == 1
+
+
+def test_mark_nothing_grounded_fails_recall_control():
+    suite = ClassificationSuite()
+    suite.expected = [True, False]
+    suite.predicted = [False, False]
+    suite.outcomes = [Outcome("q", "positive", False), Outcome("q", "negative", True)]
+
+    assert suite.recall == 0.0
+    assert suite.false_negative_rate == 1.0
+    assert suite.report()["false_negative"] == 1
 
 
 @pytest.mark.asyncio

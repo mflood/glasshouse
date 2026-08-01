@@ -1,0 +1,71 @@
+{
+  "about": "Independent sentence-level ground truth. These labels are authored before and outside detector output.",
+  "labels": [
+    {
+      "question": "Why did the Cormorant lose power on dive 214?",
+      "sentence": "The Cormorant lost power due to a hard particle that became trapped during seal replacement work performed during the August maintenance period.",
+      "grounded": true,
+      "document": "02-engineering-memo"
+    },
+    {
+      "question": "How late was the maintenance window moved, and why does that matter?",
+      "sentence": "The excerpts indicate that a schedule compression agreed in June removed the shore maintenance window that would otherwise have applied, but they don't specify how much later the maintenance was moved or provide exact timing details.",
+      "grounded": true,
+      "document": "03-board-findings"
+    },
+    {
+      "question": "Did the crew make a mistake?",
+      "sentence": "They logged the transient dropouts and continued with the dive as the procedures allowed, since the criteria for aborting a mission were written around failures that had already occurred rather than transient events.",
+      "grounded": true,
+      "document": "04-pilot-log"
+    },
+    {
+      "question": "How deep can a crewed submersible go, and what happened to Cormorant at depth?",
+      "sentence": "Finally, at 1,844 metres, the primary bus failed completely, forcing the vehicle to switch to its reserve power system, which could support life support and communications but not propulsion.",
+      "grounded": true,
+      "document": "01-incident-report"
+    },
+    {
+      "question": "Who was aboard, and was anyone hurt?",
+      "sentence": "Based on the excerpts, the crew included someone named Amara, and there was at least one other person piloting or operating the vehicle who made the log entries.",
+      "grounded": true,
+      "document": "01-incident-report"
+    },
+    {
+      "question": "What should change so this does not happen again?",
+      "sentence": "First, penetrator seal work should be restricted to shore facilities rather than performed at sea, since the failure originated from a hard particle trapped during seal replacement in the wet bay—a non-clean environment.",
+      "grounded": true,
+      "document": "02-engineering-memo"
+    },
+    {
+      "question": "Why did the Cormorant lose power on dive 214?",
+      "sentence": "The board commissioned an independent review of the decision.",
+      "grounded": false
+    },
+    {
+      "question": "How late was the maintenance window moved, and why does that matter?",
+      "sentence": "A second supplier was engaged in the following quarter.",
+      "grounded": false
+    },
+    {
+      "question": "Did the crew make a mistake?",
+      "sentence": "The programme director resigned shortly afterwards.",
+      "grounded": false
+    },
+    {
+      "question": "How deep can a crewed submersible go, and what happened to Cormorant at depth?",
+      "sentence": "Regulators were notified within thirty days as required.",
+      "grounded": false
+    },
+    {
+      "question": "Who was aboard, and was anyone hurt?",
+      "sentence": "An internal audit later put the figure closer to double the estimate.",
+      "grounded": false
+    },
+    {
+      "question": "What should change so this does not happen again?",
+      "sentence": "The manufacturer replaced every vehicle in the fleet the following month.",
+      "grounded": false
+    }
+  ]
+}

@@ -83,8 +83,8 @@ These numbers come from the committed recording and can be reproduced locally:
 |---|---:|---|
 | Hand-keyed attribution | **6/6** | A unique fact is credited to the one document containing it |
 | Document-deletion counterfactual | **14/14** | A grounded claim changes after every credited document is independently removed |
-| Unsupported-sentence injection | **6/6 detected** | A plausible sentence absent from the corpus is not marked grounded |
-| Injection false positives | **0/14** | Existing grounded claims remain grounded |
+| Independent sentence labels | **100% precision, 67% recall** | 12 hand-labelled grounded/unsupported sentences are classified without using detector verdicts as truth |
+| Classification error rates | **0% FPR, 33% FNR** | The committed fixture exposes both always-grounded and never-grounded failure modes |
 
 ```bash
 glasshouse eval attribution --demo
@@ -92,11 +92,11 @@ glasshouse eval counterfactual --demo
 glasshouse eval injection --demo
 ```
 
-The deletion counterfactual is the meaningful result: it tests each attribution
-with a different operation from the one that produced it. The injection score
-is included but is weak evidence. An inserted sentence appears in none of the
-ablation variants, so even a simplistic implementation can do well on that
-test. The evaluation code says this plainly instead of promoting an easy 100%.
+The deletion counterfactual tests each attribution with a different operation
+from the one that produced it. The injection command now uses a committed
+fixture of independently authored positive and negative sentence labels. It
+reports the full confusion matrix, and the threshold sweep optimises recall and
+precision subject to a 10% false-positive-rate ceiling.
 
 ## The web surface
 

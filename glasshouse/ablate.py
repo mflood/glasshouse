@@ -67,10 +67,9 @@ from .text import carries_a_claim, sentences
 class AblationPolicy:
     """Thresholds and budgets.
 
-    The defaults were not guessed. They come from the sweep in
-    ``evals/thresholds.py``, which picks the point that maximises detection of
-    injected hallucinations subject to keeping the false-positive rate on
-    known-grounded sentences under 10%.
+    Candidate support thresholds are evaluated against the committed independent
+    sentence-label fixture, which exposes precision, recall, false-positive
+    rate, and false-negative rate across a grid.
     """
 
     #: How much similarity a sentence must lose, above the noise floor, before

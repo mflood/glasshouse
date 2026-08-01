@@ -75,6 +75,12 @@ async def record_demo(out: Path, model: str | None = None, source: Path | None =
         if probes_path.exists()
         else []
     )
+    labels_path = source / "labels.json"
+    labels = (
+        json.loads(labels_path.read_text(encoding="utf-8"))["labels"]
+        if labels_path.exists()
+        else []
+    )
     # The probe questions are recorded too, so the attribution evaluation --
     # the one with hand-written ground truth -- reproduces without a key.
     to_record = list(questions) + [p["question"] for p in probes]
@@ -110,9 +116,7 @@ async def record_demo(out: Path, model: str | None = None, source: Path | None =
     # and the frozen embedder in the demo will (correctly) refuse anything it
     # was not given. Recording them is what lets a visitor who cloned the
     # repository reproduce the README's numbers with no API key.
-    from .evaluate import INJECTIONS
-
-    embedder.embed(INJECTIONS)
+    embedder.embed([label["sentence"] for label in labels])
 
     out.mkdir(parents=True, exist_ok=True)
     _write_corpus(out / "corpus.jsonl", documents)
@@ -130,6 +134,7 @@ async def record_demo(out: Path, model: str | None = None, source: Path | None =
                 "ablation": {"max_runs": ABLATION.max_runs},
                 "recorded_model": model or DEFAULT_MODEL,
                 "probes": probes,
+                "labels": labels,
                 "counterfactual": counterfactual.report(),
             },
             indent=2,
