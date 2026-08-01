@@ -26,6 +26,10 @@ DEFAULT_MAX_WORDS = 220
 
 _TOKEN = re.compile(r"\S+")
 
+# Loader provenance is namespaced so it cannot be mistaken for corpus metadata.
+_SOURCE_PATH = "glasshouse_source_path"
+_SOURCE_LINE = "glasshouse_source_line"
+
 
 @dataclass(frozen=True)
 class ChunkingPolicy:
@@ -147,6 +151,68 @@ def chunk_all(
     return chunks
 
 
+def validate_documents(docs: list[Document]) -> None:
+    """Require stable, globally unique document identities.
+
+    IDs are case-sensitive and must be used exactly as supplied: surrounding
+    whitespace is rejected rather than normalized.  This keeps chunk identities
+    reproducible and prevents one document's ablation from removing another's.
+    """
+    invalid: list[str] = []
+    occurrences: dict[str, list[Document]] = {}
+    for doc in docs:
+        if not isinstance(doc.doc_id, str) or not doc.doc_id.strip():
+            invalid.append(_document_location(doc))
+            continue
+        if doc.doc_id != doc.doc_id.strip():
+            invalid.append(
+                "%r at %s (surrounding whitespace)"
+                % (doc.doc_id, _document_location(doc))
+            )
+            continue
+        occurrences.setdefault(doc.doc_id, []).append(doc)
+
+    duplicates = {
+        doc_id: matches for doc_id, matches in occurrences.items() if len(matches) > 1
+    }
+    problems: list[str] = []
+    if invalid:
+        problems.append("invalid doc_id at " + ", ".join(invalid))
+    if duplicates:
+        details = []
+        for doc_id, matches in duplicates.items():
+            details.append(
+                "%r (%s)"
+                % (doc_id, ", ".join(_document_location(doc) for doc in matches))
+            )
+        problems.append("duplicate doc_id values: " + "; ".join(details))
+    if problems:
+        raise ValueError("invalid document identities: " + "; ".join(problems))
+
+
+def validate_chunk_ids(chunks: list[Chunk]) -> None:
+    """Defensively assert the global identity invariant used by ablation."""
+    counts: dict[str, int] = {}
+    for chunk in chunks:
+        counts[chunk.chunk_id] = counts.get(chunk.chunk_id, 0) + 1
+    duplicates = sorted(chunk_id for chunk_id, count in counts.items() if count > 1)
+    if duplicates:
+        raise ValueError(
+            "duplicate generated chunk_id values: %s"
+            % ", ".join(repr(value) for value in duplicates)
+        )
+
+
+def _document_location(doc: Document) -> str:
+    path = doc.meta.get(_SOURCE_PATH) or doc.meta.get("path")
+    line = doc.meta.get(_SOURCE_LINE)
+    if path and line:
+        return "%s line %s" % (path, line)
+    if path:
+        return str(path)
+    return "document titled %r" % doc.title
+
+
 # ---------------------------------------------------------------------------
 # Loading
 # ---------------------------------------------------------------------------
@@ -209,12 +275,21 @@ def _load_jsonl(path: Path) -> list[Document]:
             raise ValueError("%s line %d is not valid JSON: %s" % (path, number, exc))
         if "text" not in record:
             raise ValueError("%s line %d has no 'text' field" % (path, number))
+        if "doc_id" in record:
+            doc_id = record["doc_id"]
+        elif "id" in record:
+            doc_id = record["id"]
+        else:
+            doc_id = number
+        meta = dict(record.get("meta") or {})
+        meta[_SOURCE_PATH] = str(path)
+        meta[_SOURCE_LINE] = number
         docs.append(
             Document(
-                doc_id=str(record.get("doc_id") or record.get("id") or number),
+                doc_id=str(doc_id) if doc_id is not None else "",
                 title=str(record.get("title") or "document %d" % number),
                 text=record["text"],
-                meta=record.get("meta") or {},
+                meta=meta,
             )
         )
     if not docs:
