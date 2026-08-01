@@ -17,7 +17,13 @@ from typing import Sequence
 import numpy as np
 
 from .ablate import AblationPolicy, Ablator
-from .corpus import ChunkingPolicy, chunk_all, load_documents
+from .corpus import (
+    ChunkingPolicy,
+    chunk_all,
+    load_documents,
+    validate_chunk_ids,
+    validate_documents,
+)
 from .embed import CachingEmbedder, Embedder, FrozenEmbedder, NgramEmbedder, identity
 from .events import Emitter, emit
 from .index import HybridIndex, RetrievalPolicy
@@ -137,6 +143,8 @@ def build(
     ablation: AblationPolicy | None = None,
 ) -> Lab:
     """Assemble a lab from documents."""
+    documents = tuple(documents)
+    validate_documents(list(documents))
     if embedder is not None and retrieval_embedder is not None:
         raise ValueError("pass embedder or retrieval_embedder, not both")
     retrieval_embedder = retrieval_embedder or embedder or NgramEmbedder()
@@ -146,6 +154,7 @@ def build(
     if not isinstance(survival_embedder, CachingEmbedder):
         survival_embedder = CachingEmbedder(survival_embedder)
     chunks = chunk_all(list(documents), chunking)
+    validate_chunk_ids(chunks)
     if not chunks:
         raise ValueError("the corpus produced no chunks -- are the documents empty?")
     return Lab(
@@ -199,10 +208,12 @@ def load_demo(directory: Path | None = None, delay: float = 0.35) -> Demo:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     documents = load_documents(directory / "corpus.jsonl")
+    validate_documents(documents)
     embedder = FrozenEmbedder.load(directory / "vectors.json")
     llm = ReplayLLM.load(directory / "cassette.json", delay=delay)
 
     chunks = chunk_all(documents, ChunkingPolicy(**manifest.get("chunking", {})))
+    validate_chunk_ids(chunks)
     lab = Lab(
         index=HybridIndex(chunks, embedder),
         llm=llm,

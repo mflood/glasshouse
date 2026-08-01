@@ -3,8 +3,9 @@ import random
 
 import pytest
 
-from glasshouse import ChunkingPolicy, Document, chunk_document, load_documents
+from glasshouse import ChunkingPolicy, Document, build, chunk_document, load_documents
 from glasshouse.corpus import chunk_all
+from glasshouse.llm import ScriptedLLM
 
 
 def _doc(text, doc_id="d"):
@@ -162,6 +163,17 @@ def test_load_from_a_directory(tmp_path):
     assert docs[0].title == "Alpha"
 
 
+def test_directory_ids_include_relative_paths_to_remain_unique(tmp_path):
+    (tmp_path / "first").mkdir()
+    (tmp_path / "second").mkdir()
+    (tmp_path / "first" / "note.md").write_text("First.")
+    (tmp_path / "second" / "note.md").write_text("Second.")
+
+    docs = load_documents(tmp_path)
+
+    assert [doc.doc_id for doc in docs] == ["first/note", "second/note"]
+
+
 def test_load_from_jsonl(tmp_path):
     path = tmp_path / "corpus.jsonl"
     path.write_text(
@@ -177,6 +189,71 @@ def test_load_from_jsonl(tmp_path):
     docs = load_documents(path)
 
     assert [d.doc_id for d in docs] == ["x", "y"]
+
+
+def test_jsonl_duplicate_ids_name_every_value_and_line(tmp_path):
+    path = tmp_path / "corpus.jsonl"
+    path.write_text(
+        "\n".join(
+            json.dumps({"doc_id": doc_id, "text": "body"})
+            for doc_id in ["alpha", "beta", "alpha", "beta"]
+        )
+    )
+
+    with pytest.raises(ValueError) as caught:
+        build(load_documents(path), ScriptedLLM(lambda request: "unused"))
+
+    message = str(caught.value)
+    assert "'alpha'" in message and "line 1" in message and "line 3" in message
+    assert "'beta'" in message and "line 2" in message and "line 4" in message
+
+
+def test_build_rejects_duplicate_programmatic_document_ids_before_embedding():
+    class ExplodingEmbedder:
+        def embed(self, texts):
+            raise AssertionError("embedding must not begin")
+
+    docs = [_doc("First.", "dup"), _doc("Second.", "dup")]
+
+    with pytest.raises(ValueError, match="duplicate doc_id.*'dup'"):
+        build(
+            docs,
+            ScriptedLLM(lambda request: "unused"),
+            embedder=ExplodingEmbedder(),
+        )
+
+
+@pytest.mark.parametrize("doc_id", ["", "   ", " padded "])
+def test_build_rejects_empty_or_padded_document_ids(doc_id):
+    with pytest.raises(ValueError, match="invalid document identities"):
+        build([_doc("Body.", doc_id)], ScriptedLLM(lambda request: "unused"))
+
+
+def test_document_ids_are_case_sensitive():
+    lab = build(
+        [_doc("Upper.", "Source"), _doc("Lower.", "source")],
+        ScriptedLLM(lambda request: "unused"),
+    )
+
+    assert {chunk.chunk_id for chunk in lab.index.chunks} == {"Source#0", "source#0"}
+
+
+def test_build_defensively_rejects_generated_chunk_id_collisions(monkeypatch):
+    from glasshouse import pipeline
+
+    chunks = chunk_all([_doc("Body.", "source")])
+    monkeypatch.setattr(pipeline, "chunk_all", lambda documents, policy: chunks * 2)
+
+    with pytest.raises(ValueError, match="duplicate generated chunk_id.*source#0"):
+        build([_doc("Body.", "source")], ScriptedLLM(lambda request: "unused"))
+
+
+def test_jsonl_explicit_empty_id_does_not_fall_back_to_line_number(tmp_path):
+    path = tmp_path / "corpus.jsonl"
+    path.write_text(json.dumps({"doc_id": "", "text": "body"}))
+
+    with pytest.raises(ValueError, match="line 1"):
+        build(load_documents(path), ScriptedLLM(lambda request: "unused"))
 
 
 def test_a_bad_jsonl_line_names_its_line_number(tmp_path):
