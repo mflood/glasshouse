@@ -1,0 +1,35 @@
+---
+description: Preserve Glasshouse's ablation-centered mission and core boundary
+alwaysApply: true
+---
+
+# Glasshouse project rules
+
+Read `MISSION.md` before architectural or feature work. Follow
+`demo/CHARTER.md` for changes under `demo/`.
+
+- The core measures counterfactual dependence of generated claims on supplied
+  evidence through controlled evidence removal.
+- Credit sources only from ablation or another explicit intervention. Do not
+  treat retrieval rank, semantic similarity, attention, model explanation, or
+  generated citations as proof of source use.
+- Keep dependence distinct from relevance, entailment, truth, source
+  reliability, and authority.
+- Keep model-memory, unsupported, undetermined, and no-contribution results
+  visible.
+- Admit a core feature only when it improves the validity, efficiency,
+  reproducibility, or inspectability of source-dependence measurement across
+  domains.
+- Put ingestion, crawling, clustering, citation formatting, source comparison,
+  and domain-specific workflows in `demo/` or a separate integration.
+- Core modules must never import from demos or integrations.
+- Downstream transformations occur after attribution and must not affect source
+  credit.
+- Preserve opaque provenance metadata and exact source spans without adding
+  domain-specific interpretation to the core.
+- Require tests or evaluations for changes to attribution behavior, and do not
+  hide negative results.
+
+For every proposed core feature, complete: "Without this change, Glasshouse
+mismeasures or cannot adequately inspect source dependence because ____."
+If that statement is not convincing, keep the feature downstream.

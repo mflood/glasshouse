@@ -13,6 +13,7 @@ than to a re-matched copy of the text.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -22,6 +23,8 @@ from .text import Span, split_sentences, word_count
 DEFAULT_TARGET_WORDS = 110
 DEFAULT_OVERLAP_SENTENCES = 1
 DEFAULT_MAX_WORDS = 220
+
+_TOKEN = re.compile(r"\S+")
 
 
 @dataclass(frozen=True)
@@ -111,17 +114,15 @@ def _split_long(span: Span, max_words: int) -> list[Span]:
     Offsets are recovered by walking the original text rather than by
     re-joining words, so a run of double spaces cannot shift the highlight.
     """
+    tokens = list(_TOKEN.finditer(span.text))
     pieces: list[Span] = []
-    words = span.text.split()
-    cursor = 0
-    for i in range(0, len(words), max_words):
-        batch = words[i : i + max_words]
-        first = span.text.index(batch[0], cursor)
-        last = span.text.index(batch[-1], first) + len(batch[-1])
+    for i in range(0, len(tokens), max_words):
+        batch = tokens[i : i + max_words]
+        start = batch[0].start()
+        end = batch[-1].end()
         pieces.append(
-            Span(span.text[first:last], span.start + first, span.start + last)
+            Span(span.text[start:end], span.start + start, span.start + end)
         )
-        cursor = last
     return pieces
 
 

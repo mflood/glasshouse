@@ -1,4 +1,5 @@
 import json
+import random
 
 import pytest
 
@@ -88,6 +89,49 @@ def test_a_hard_split_keeps_honest_offsets():
 
     for chunk in chunks:
         assert text[chunk.start : chunk.end] == chunk.text
+
+
+def test_a_hard_split_does_not_confuse_repeated_words():
+    text = "one two one four five six"
+    chunks = chunk_document(_doc(text), ChunkingPolicy(target_words=3, max_words=3))
+
+    assert [chunk.text for chunk in chunks] == ["one two one", "four five six"]
+    assert [word for chunk in chunks for word in chunk.text.split()] == text.split()
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "same, alpha same, beta gamma delta",
+        "하나 둘 하나 셋 넷 다섯",
+        "alpha\tbeta\talpha\ngamma delta epsilon",
+        "alpha  beta   alpha    gamma delta epsilon",
+    ],
+)
+def test_hard_splits_preserve_tokens_whitespace_and_offsets(text):
+    doc = _doc(text)
+    chunks = chunk_document(doc, ChunkingPolicy(target_words=3, max_words=3))
+
+    assert [word for chunk in chunks for word in chunk.text.split()] == text.split()
+    assert all(len(chunk.text.split()) <= 3 for chunk in chunks)
+    assert all(text[chunk.start : chunk.end] == chunk.text for chunk in chunks)
+
+
+def test_generated_repeated_word_sentences_survive_hard_splitting():
+    rng = random.Random(8)
+    vocabulary = ["one", "two", "three", "four"]
+
+    for length in range(4, 40):
+        words = [rng.choice(vocabulary) for _ in range(length)]
+        words[2] = words[0]
+        text = " ".join(words)
+        chunks = chunk_document(
+            _doc(text), ChunkingPolicy(target_words=3, max_words=3)
+        )
+
+        assert [word for chunk in chunks for word in chunk.text.split()] == words
+        assert all(len(chunk.text.split()) <= 3 for chunk in chunks)
+        assert all(text[chunk.start : chunk.end] == chunk.text for chunk in chunks)
 
 
 def test_empty_documents_produce_no_chunks():
