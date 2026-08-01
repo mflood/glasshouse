@@ -1,5 +1,6 @@
 import json
 from argparse import Namespace
+from types import SimpleNamespace
 
 import pytest
 
@@ -15,6 +16,14 @@ from glasshouse.evaluate import (
     run_suite,
 )
 from glasshouse.llm import Request, ScriptedLLM
+from glasshouse.models import (
+    Chunk,
+    ClaimVerdict,
+    Report,
+    Retrieved,
+    Support,
+    Verdict,
+)
 
 
 @pytest.mark.asyncio
@@ -194,6 +203,89 @@ async def test_counterfactual_preserves_both_embedding_roles(monkeypatch):
     assert suite.outcomes
     assert passed[0]["retrieval_embedder"] is lab.index.embedder
     assert passed[0]["survival_embedder"] is lab.matcher.embedder
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "claim, regenerated",
+    [
+        (
+            "Revenue grew 3.5% this year.",
+            "Revenue grew 3.5% this year. It beat forecasts.",
+        ),
+        (
+            "Dr. Chen approved the launch.",
+            "Dr. Chen approved the launch. It proceeded.",
+        ),
+        (
+            "J. R. Hartley approved the launch.",
+            "J. R. Hartley approved the launch. It proceeded.",
+        ),
+        ('She asked, "Is it ready?"', 'She asked, "Is it ready?" Then she waited.'),
+        ("Is the launch ready?", "Is the launch ready? It is."),
+        ("The launch is ready!", "The launch is ready! It proceeds today."),
+    ],
+    ids=[
+        "decimal",
+        "title",
+        "initials",
+        "quoted-terminator",
+        "question",
+        "exclamation",
+    ],
+)
+async def test_counterfactual_rejects_surviving_claims_for_all_sentence_punctuation(
+    monkeypatch, claim, regenerated
+):
+    """The old ``split('. ')`` fragmented or joined every case in this table."""
+    chunk = Chunk("alpha:0", "alpha", "Alpha", claim, 0, len(claim))
+    support = Support("alpha:0", effect=1.0, raw_drop=1.0, credited=True)
+    baseline = Report(
+        question="What happened?",
+        answer=claim,
+        retrieved=(Retrieved(chunk, score=1.0),),
+        claims=(ClaimVerdict(0, claim, Verdict.GROUNDED, support=(support,)),),
+        runs=(),
+    )
+
+    class ExactMatcher:
+        embedder = object()
+
+        def survival(self, references, candidates):
+            import numpy as np
+
+            return np.asarray(
+                [float(reference in candidates) for reference in references],
+                dtype=np.float32,
+            )
+
+    lab = SimpleNamespace(
+        index=SimpleNamespace(embedder=object()),
+        matcher=ExactMatcher(),
+        llm=object(),
+        retrieval=object(),
+        ablation=object(),
+    )
+
+    async def ask(_question):
+        return SimpleNamespace(answer=regenerated)
+
+    smaller = SimpleNamespace(ask=ask)
+    monkeypatch.setattr("glasshouse.evaluate.build", lambda *_args, **_kwargs: smaller)
+
+    suite = await counterfactual_suite(
+        lab,
+        [
+            Document("alpha", "Alpha", claim),
+            Document("beta", "Beta", "Other evidence."),
+        ],
+        ["What happened?"],
+        baselines={"What happened?": baseline},
+    )
+
+    assert len(suite.outcomes) == 1
+    assert not suite.outcomes[0].passed
+    assert suite.outcomes[0].note.endswith("the claim scores 1.00")
 
 
 @pytest.mark.asyncio
