@@ -22,8 +22,9 @@ import json
 import math
 import os
 import re
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, Sequence
+from typing import Any, Protocol, Sequence
 
 import numpy as np
 
@@ -36,6 +37,44 @@ class Embedder(Protocol):
 
     def embed(self, texts: Sequence[str]) -> np.ndarray:
         """Return an ``(len(texts), dimensions)`` array of unit vectors."""
+
+
+def identity(embedder: Embedder) -> str:
+    """The underlying model identity, without operational wrappers."""
+    inner = getattr(embedder, "inner", None)
+    return identity(inner) if inner is not None else embedder.name
+
+
+@dataclass(frozen=True)
+class EmbedderConfig:
+    """User-facing selection for one embedding role."""
+
+    provider: str = "auto"
+    model: str = "text-embedding-3-small"
+    dimensions: int = 512
+    cache_path: Path | None = None
+    offline: bool = False
+    endpoint: str | None = None
+
+
+def create_embedder(config: EmbedderConfig) -> Embedder:
+    """Resolve an explicit provider, never silently downgrading semantics."""
+    provider = config.provider.lower()
+    if provider not in {"auto", "openai", "lexical"}:
+        raise ValueError("embedding provider must be auto, openai, or lexical")
+    if config.offline and provider == "openai":
+        raise RuntimeError("--offline cannot be combined with --embedding-provider openai")
+    if provider == "auto":
+        provider = "lexical" if config.offline or not os.environ.get("OPENAI_API_KEY") else "openai"
+    if provider == "openai":
+        inner: Embedder = OpenAIEmbedder(
+            model=config.model,
+            dimensions=config.dimensions,
+            endpoint=config.endpoint,
+        )
+    else:
+        inner = NgramEmbedder(dimensions=config.dimensions)
+    return CachingEmbedder(inner, config.cache_path)
 
 
 def cosine(a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -143,7 +182,10 @@ class CachingEmbedder:
 
     def _load(self) -> None:
         payload = json.loads(self.path.read_text())
-        if payload.get("dimensions") != self.dimensions:
+        if (
+            payload.get("dimensions") != self.dimensions
+            or payload.get("model") != self.inner.name
+        ):
             return  # A cache from a different model is not usable.
         for key, values in payload["vectors"].items():
             self._memory[key] = np.asarray(values, dtype=np.float32)
@@ -229,11 +271,15 @@ class OpenAIEmbedder:
         dimensions: int = 512,
         api_key: str | None = None,
         timeout: float = 30.0,
+        endpoint: str | None = None,
+        transport: Any = None,
     ):
         self.model = model
         self.name = "openai:%s" % model
         self.dimensions = dimensions
         self.timeout = timeout
+        self.endpoint = endpoint or self.ENDPOINT
+        self.transport = transport
         self._api_key = api_key or os.environ.get("OPENAI_API_KEY")
         if not self._api_key:
             raise RuntimeError(
@@ -249,16 +295,16 @@ class OpenAIEmbedder:
         # request cannot fail an entire ablation sweep.
         for start in range(0, len(texts), 96):
             batch = list(texts[start : start + 96])
-            response = httpx.post(
-                self.ENDPOINT,
-                headers={"Authorization": "Bearer %s" % self._api_key},
-                json={
-                    "model": self.model,
-                    "input": batch,
-                    "dimensions": self.dimensions,
-                },
-                timeout=self.timeout,
-            )
+            with httpx.Client(transport=self.transport, timeout=self.timeout) as client:
+                response = client.post(
+                    self.endpoint,
+                    headers={"Authorization": "Bearer %s" % self._api_key},
+                    json={
+                        "model": self.model,
+                        "input": batch,
+                        "dimensions": self.dimensions,
+                    },
+                )
             response.raise_for_status()
             payload = response.json()
             ordered = sorted(payload["data"], key=lambda d: d["index"])

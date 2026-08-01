@@ -142,6 +142,61 @@ async def test_counterfactual_can_reuse_a_baseline_instead_of_paying_twice():
 
 
 @pytest.mark.asyncio
+async def test_counterfactual_preserves_both_embedding_roles(monkeypatch):
+    class ExactEmbedder:
+        name = "exact-retrieval"
+        dimensions = 2
+
+        def embed(self, texts):
+            import numpy as np
+
+            return np.asarray(
+                [[1.0, 0.0] if "cobalt" in text.lower() else [0.0, 1.0] for text in texts],
+                dtype=np.float32,
+            )
+
+    class SurvivalEmbedder(ExactEmbedder):
+        name = "independent-survival"
+
+    docs = [
+        Document("alpha", "Alpha", "The launch code was cobalt seven."),
+        Document("beta", "Beta", "The weather was clear."),
+    ]
+    llm = ScriptedLLM(
+        lambda request: (
+            "The launch code was cobalt seven."
+            if "cobalt seven" in request.prompt
+            else "Nothing answers the question."
+        )
+    )
+    lab = build(
+        docs,
+        llm,
+        retrieval_embedder=ExactEmbedder(),
+        survival_embedder=SurvivalEmbedder(),
+        chunking=ChunkingPolicy(target_words=40),
+        ablation=AblationPolicy(max_runs=8),
+    )
+    question = "What was the launch code?"
+    baseline = await lab.ask(question)
+    passed = []
+
+    def capture_build(*args, **kwargs):
+        passed.append(kwargs)
+        return build(*args, **kwargs)
+
+    monkeypatch.setattr("glasshouse.evaluate.build", capture_build)
+
+    suite = await counterfactual_suite(
+        lab, docs, [question], baselines={question: baseline}
+    )
+
+    assert suite.outcomes
+    assert passed[0]["retrieval_embedder"] is lab.index.embedder
+    assert passed[0]["survival_embedder"] is lab.matcher.embedder
+
+
+@pytest.mark.asyncio
 async def test_attribution_is_a_real_cli_branch(monkeypatch, capsys, tmp_path):
     """Regression: the parser accepted attribution but ran thresholds."""
     fake = Suite("attribution")

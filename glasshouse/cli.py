@@ -54,6 +54,7 @@ def main(argv: list[str] | None = None) -> int:
     ask.add_argument("--demo", action="store_true", help="use the recorded demo corpus")
     ask.add_argument("--json", action="store_true", help="print the full report as JSON")
     ask.add_argument("--model", default=None)
+    _embedding_arguments(ask)
 
     serve = sub.add_parser("serve", help="run the web interface")
     serve.add_argument("--corpus", type=Path)
@@ -61,6 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
     serve.add_argument("--model", default=None)
+    _embedding_arguments(serve)
 
     record = sub.add_parser("record", help="build the offline demo recording")
     record.add_argument("--out", type=Path, default=Path("demo"))
@@ -97,6 +99,33 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
+def _embedding_arguments(parser: argparse.ArgumentParser) -> None:
+    group = parser.add_argument_group("embedding models")
+    group.add_argument(
+        "--embedding-provider",
+        choices=["auto", "openai", "lexical"],
+        default="auto",
+        help="retrieval provider (auto uses OpenAI when OPENAI_API_KEY is set)",
+    )
+    group.add_argument("--embedding-model", default="text-embedding-3-small")
+    group.add_argument("--embedding-dimensions", type=int, default=512)
+    group.add_argument("--embedding-cache", type=Path)
+    group.add_argument(
+        "--survival-embedding-provider",
+        choices=["openai", "lexical"],
+        default="lexical",
+        help="independent survival matcher provider",
+    )
+    group.add_argument("--survival-embedding-model", default="text-embedding-3-small")
+    group.add_argument("--survival-embedding-dimensions", type=int, default=1024)
+    group.add_argument("--survival-embedding-cache", type=Path)
+    group.add_argument(
+        "--offline",
+        action="store_true",
+        help="disable remote embeddings and use explicit lexical-only retrieval",
+    )
+
+
 def _build_lab(args):
     """Resolve the corpus and model the way every command wants it."""
     from .pipeline import from_path, load_demo
@@ -110,6 +139,7 @@ def _build_lab(args):
         demo = load_demo(delay=0.0)
         return demo.lab, demo
 
+    from .embed import EmbedderConfig, create_embedder, identity
     from .llm import AnthropicLLM
 
     llm = AnthropicLLM()
@@ -118,6 +148,38 @@ def _build_lab(args):
         from .ablate import AblationPolicy
 
         kwargs["ablation"] = AblationPolicy(model=args.model)
+    retrieval_embedder = create_embedder(
+        EmbedderConfig(
+            provider=args.embedding_provider,
+            model=args.embedding_model,
+            dimensions=args.embedding_dimensions,
+            cache_path=args.embedding_cache,
+            offline=args.offline,
+        )
+    )
+    survival_provider = args.survival_embedding_provider
+    if args.offline and survival_provider != "lexical":
+        raise RuntimeError("--offline requires --survival-embedding-provider lexical")
+    survival_embedder = create_embedder(
+        EmbedderConfig(
+            provider=survival_provider,
+            model=args.survival_embedding_model,
+            dimensions=args.survival_embedding_dimensions,
+            cache_path=args.survival_embedding_cache,
+            offline=args.offline,
+        )
+    )
+    if identity(retrieval_embedder) == "ngram-local":
+        print(
+            "warning: lexical-only retrieval is active; it does not provide "
+            "semantic paraphrase matching. Set OPENAI_API_KEY or pass "
+            "--embedding-provider openai.",
+            file=sys.stderr,
+        )
+    kwargs.update(
+        retrieval_embedder=retrieval_embedder,
+        survival_embedder=survival_embedder,
+    )
     return from_path(args.corpus, llm, **kwargs), None
 
 

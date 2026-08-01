@@ -37,6 +37,7 @@ To analyse your own Markdown, text, or JSONL corpus:
 
 ```bash
 export ANTHROPIC_API_KEY=your-key
+export OPENAI_API_KEY=your-key
 glasshouse serve --corpus ./documents
 # or stay in the terminal
 glasshouse ask --corpus ./documents "Why did the rollout slip?"
@@ -69,8 +70,26 @@ A bounded coalition search catches redundant evidence: when two chunks both
 contain the fact, removing either one alone changes nothing, but removing both
 does. That failure mode is covered by an explicit regression test.
 
-Retrieval is hybrid reciprocal-rank fusion over lexical and dense results,
-followed by MMR diversity and within-document neighbour expansion. Chunk spans
+Retrieval is hybrid reciprocal-rank fusion over BM25 and embedding results,
+followed by MMR diversity and within-document neighbour expansion. With
+`OPENAI_API_KEY` configured, the default retrieval model is
+`text-embedding-3-small`; without it, Glasshouse emits a warning and labels the
+run as lexical-only rather than claiming semantic retrieval. Configure the two
+embedding roles independently:
+
+```bash
+glasshouse serve --corpus ./documents \
+  --embedding-provider openai \
+  --embedding-model text-embedding-3-small \
+  --embedding-dimensions 512 \
+  --embedding-cache .cache/retrieval-vectors.json \
+  --survival-embedding-provider lexical
+```
+
+`--offline` explicitly selects local lexical retrieval. Character n-grams are
+useful for deterministic near-duplicate survival scoring, but they do not
+provide semantic paraphrase matching. The API corpus metadata and every JSON
+report identify both the retrieval and survival models. Chunk spans
 retain offsets into their source document. The language model, embedder, and
 event sink all sit behind narrow Python protocols, so live calls, deterministic
 tests, and the offline cassette run exactly the same pipeline.
@@ -109,8 +128,10 @@ precision subject to a 10% false-positive-rate ceiling.
 - **Keyboard and motion aware.** Every inspectable sentence is keyboard
   operable, focus is visible, the layout collapses for small screens, and
   reduced-motion preferences disable transitions.
-- **Recorded, not mocked.** The demo cassette contains real model responses
-  and usage, plus frozen embedding vectors. Replay mode refuses unrecorded
+- **Recorded, not mocked.** The committed demo cassette contains real model
+  responses and usage plus frozen `ngram-local` lexical vectors. Its manifest
+  identifies that retrieval model; it is not presented as a semantic run.
+  Replay mode refuses unrecorded
   questions rather than inventing output.
 
 The API schema is available at `/api/docs` while the server is running.

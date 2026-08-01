@@ -60,6 +60,7 @@ def run_json(run: Run) -> dict:
 
 def report_json(report: Report) -> dict:
     return {
+        "metadata": dict(report.metadata),
         "question": report.question,
         "answer": report.answer,
         "retrieved": [retrieved_json(r) for r in report.retrieved],

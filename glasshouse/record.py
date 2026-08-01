@@ -133,6 +133,8 @@ async def record_demo(out: Path, model: str | None = None, source: Path | None =
                 "retrieval": {"top_k": RETRIEVAL.top_k},
                 "ablation": {"max_runs": ABLATION.max_runs},
                 "recorded_model": model or DEFAULT_MODEL,
+                "retrieval_embedder": embedder.inner.name,
+                "survival_embedder": embedder.inner.name,
                 "probes": probes,
                 "labels": labels,
                 "counterfactual": counterfactual.report(),

@@ -19,6 +19,8 @@
     "max_runs": 28
   },
   "recorded_model": "claude-haiku-4-5-20251001",
+  "retrieval_embedder": "ngram-local",
+  "survival_embedder": "ngram-local",
   "probes": [
     {
       "question": "What did the teardown find on the titanium seat?",

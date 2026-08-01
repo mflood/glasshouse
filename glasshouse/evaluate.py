@@ -320,9 +320,26 @@ async def counterfactual_suite(
             key = (question, tuple(sorted(credited_docs)))
             after = reduced_answers.get(key)
             if after is None:
+                retrieval_embedder = lab.index.embedder
+                survival_embedder = lab.matcher.embedder
+                from .embed import FrozenEmbedder, NgramEmbedder
+
+                if isinstance(retrieval_embedder, FrozenEmbedder):
+                    # The committed cassette recorded reduced-corpus retrieval
+                    # with the deterministic local model. Frozen vectors only
+                    # contain the full demo index, not newly chunked variants.
+                    retrieval_embedder = NgramEmbedder(
+                        dimensions=retrieval_embedder.dimensions
+                    )
+                if isinstance(survival_embedder, FrozenEmbedder):
+                    survival_embedder = NgramEmbedder(
+                        dimensions=survival_embedder.dimensions
+                    )
                 smaller = build(
                     reduced,
                     lab.llm,
+                    retrieval_embedder=retrieval_embedder,
+                    survival_embedder=survival_embedder,
                     retrieval=lab.retrieval,
                     ablation=lab.ablation,
                 )
