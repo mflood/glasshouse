@@ -65,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
     _embedding_arguments(serve)
 
     record = sub.add_parser("record", help="build the offline demo recording")
-    record.add_argument("--out", type=Path, default=Path("demo"))
+    record.add_argument("--out", type=Path, default=Path("demo/cormorant"))
     record.add_argument("--model", default=None)
 
     ev = sub.add_parser("eval", help="reproduce the evaluation numbers")

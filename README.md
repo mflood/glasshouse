@@ -114,7 +114,8 @@ tests, and the offline cassette run exactly the same pipeline.
 
 ## Does it work?
 
-These numbers come from the committed recording and can be reproduced locally:
+These numbers come from the committed Cormorant recording under
+[`demo/cormorant/`](demo/cormorant/) and can be reproduced locally:
 
 | Evaluation | Result | What it checks |
 |---|---:|---|

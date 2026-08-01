@@ -25,7 +25,9 @@ from .llm import AnthropicLLM, DEFAULT_MODEL, RecordingLLM
 from .pipeline import Lab
 from .similarity import Matcher
 
-SOURCE = Path(__file__).resolve().parent.parent / "demo" / "source"
+SOURCE = (
+    Path(__file__).resolve().parent.parent / "demo" / "cormorant" / "source"
+)
 
 CHUNKING = ChunkingPolicy(target_words=90)
 RETRIEVAL = RetrievalPolicy(top_k=6)

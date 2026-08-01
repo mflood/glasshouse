@@ -4,7 +4,7 @@ The attribution evaluation is only meaningful if each probe's fact really does
 appear in exactly one document. That is an assumption about the corpus, and
 assumptions about corpora rot the moment somebody edits one. This checks it.
 
-    python demo/source/check_probes.py
+    python demo/cormorant/source/check_probes.py
 """
 
 import json

@@ -5,7 +5,7 @@
     "glasshouse credits can be checked against a key written by hand rather",
     "than against another model's opinion.",
     "",
-    "Uniqueness was verified with demo/source/check_probes.py, which greps the",
+    "Uniqueness was verified with demo/cormorant/source/check_probes.py, which greps the",
     "corpus for each distinguishing phrase and fails if more than one document",
     "contains it. If you edit the corpus, run that script before trusting these."
   ],
