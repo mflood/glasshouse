@@ -175,7 +175,7 @@ def from_path(path: Path, llm: LLM, **kwargs) -> Lab:
 # The recorded demo
 # ---------------------------------------------------------------------------
 
-DEMO_DIR = Path(__file__).resolve().parent.parent / "demo"
+DEMO_DIR = Path(__file__).resolve().parent.parent / "demo" / "cormorant"
 
 
 @dataclass(frozen=True)
@@ -186,7 +186,8 @@ class Demo:
     questions: tuple[str, ...]
     title: str
     blurb: str
-    #: Ground truth for the attribution evaluation; see demo/source/probes.json.
+    #: Ground truth for the attribution evaluation; see
+    #: demo/cormorant/source/probes.json.
     probes: tuple[dict, ...] = ()
     #: Independent sentence labels used by the injection/classification eval.
     labels: tuple[dict, ...] = ()
